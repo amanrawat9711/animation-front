@@ -122,10 +122,11 @@ const Header = () => {
 
   return (
     <motion.div className="relative h-screen w-screen overflow-hidden bg-indigo-200">
-      <h1 className="underline absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-4xl font-bold text-black">
+      <h1   style={{ color: "#18a60b" }} className="underline absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-4xl font-bold ">
         HAPPY SOCIETY
       </h1>
       <motion.p
+        style={{ color: "#18a60b" }}
         className="absolute top-[60%] left-1/2 transform -translate-x-1/2 text-black text-lg md:text-xl font-medium max-w-2xl text-center px-4"
         initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
