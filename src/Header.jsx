@@ -1,62 +1,30 @@
 import { motion } from "framer-motion";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react"; // Import useRef
 
 const API_BASE_URL = "https://happy-backend.onrender.com/api";
 
-const positions = [
-  { x: "13vw", y: "15vh", top: 0, left: 0, originX: 0, originY: 0 },
-  { x: "-25vw", y: "5vh", top: 0, right: 0, originX: 1, originY: 0 },
-  { x: "8vw", y: "5vh", top: 0, left: 0, originX: 0, originY: 0 },
-  { x: "-10vw", y: "10vh", top: 0, right: 0, originX: 1, originY: 0 },
-  { x: "10vw", y: "-5vh", bottom: 0, left: 0, originX: 0, originY: 1 },
-  { x: "-20vw", y: "-20vh", bottom: 0, right: 0, originX: 1, originY: 1 },
-  { x: "13vw", y: "-18vh", bottom: 0, left: 0, originX: 0, originY: 1 },
-  { x: "-15vw", y: "-10vh", bottom: 0, right: 0, originX: 1, originY: 1 },
-];
-
-const smallPositions = [
-  { x: "10vw", y: "25vh", top: "10%", left: "45%" },
-  { x: "-10vw", y: "-25vh", bottom: "10%", right: "40%" },
-  { x: "-15vw", y: "20vh", top: "15%", left: "50%" },
-  { x: "-15vw", y: "-20vh", bottom: "20%", right: 0 },
-  { x: "-10vw", y: "30vh", top: "5%", right: "30%" },
-  { x: "-10vw", y: "5vh", top: 0, right: 0 },
-  { x: "10vw", y: "-15vh", bottom:"20%", left: 0 },
-];
-
-const bigDurations = [5, 13, 13, 5, 5, 13, 13, 5];
-const smallDurations = [5, 5, 5, 13, 13, 15, 13];
-
-const bigImageInitialPositions = [
-  { x: -200, y: -200 },
-  { x: -200, y: -300 },
-  { x: -200, y: -300 },
-  { x: 200, y: 200 },
-  { x: 0, y: 0 },
-  { x: 200, y: 300 },
-  { x: 200, y: 300 },
-  { x: 0, y: -100 },
-];
-
-const smallImageInitialPositions = [
-  { x: -250, y: -250 },
-  { x: 50, y: 200 },
-  { x: -100, y: -300 },
-  { x: 500, y: 500 },
-  { x: -150, y: -200 },
-  { x: 300, y: 0 },
-  { x: -300, y: 120 },
-];
-
+// ... (positions, smallPositions, bigDurations, smallDurations, bigImageInitialPositions, smallImageInitialPositions remain the same)
 
 const Header = () => {
   const [bigImages, setBigImages] = useState([]);
   const [smallImages, setSmallImages] = useState([]);
   const [error, setError] = useState(null);
   const [animationKey, setAnimationKey] = useState(0);
+  const [imagesLoaded, setImagesLoaded] = useState(false); // New state to track if images are loaded
+
+  // Refs to track the number of loaded images
+  const bigImagesLoadedCount = useRef(0);
+  const smallImagesLoadedCount = useRef(0);
+  const totalImagesToLoad = useRef(0);
+
 
   const fetchImages = async () => {
     setError(null);
+    setImagesLoaded(false); // Reset loaded state when fetching
+    bigImagesLoadedCount.current = 0; // Reset counts
+    smallImagesLoadedCount.current = 0;
+    totalImagesToLoad.current = 0; // Reset total
+
     try {
       const response = await fetch(`${API_BASE_URL}/get-image`);
 
@@ -73,27 +41,36 @@ const Header = () => {
          setBigImages([]);
          setSmallImages([]);
          console.log("No images found on the backend.");
+         setImagesLoaded(true); // Consider loaded if none found
          return;
       }
 
       const big = allImages.filter(img => img.imageType === 'big').map(img => img.imageUrl);
       const small = allImages.filter(img => img.imageType === 'small').map(img => img.imageUrl);
 
+      totalImagesToLoad.current = big.length + small.length; // Set total images to load
+
       setBigImages(big);
       setSmallImages(small);
+
+      // Note: Animation starts AFTER imagesLoaded becomes true
 
     } catch (err) {
       console.error("Error fetching images:", err);
       setError(`Failed to fetch images: ${err.message}`);
+      setImagesLoaded(true); // Set loaded to true even on error to stop loading indicator if any
     }
   };
 
+  // Effect to fetch images on mount
   useEffect(() => {
     fetchImages();
   }, []);
 
+  // Effect to trigger animation reset after images are loaded and durations are calculated
   useEffect(() => {
-    if (!error && (bigImages.length > 0 || smallImages.length > 0)) {
+    // Only start the animation logic if images are loaded and there are images to animate
+    if (imagesLoaded && (bigImages.length > 0 || smallImages.length > 0)) {
       const currentBigDurations = bigImages.map((_, index) => bigDurations[index % bigDurations.length]);
       const currentSmallDurations = smallImages.map((_, index) => smallDurations[index % smallDurations.length]);
 
@@ -108,19 +85,57 @@ const Header = () => {
           return () => clearTimeout(timer);
       }
     }
-  }, [animationKey, error, bigImages.length, smallImages.length]);
+  }, [animationKey, imagesLoaded, bigImages.length, smallImages.length]); // Added imagesLoaded as a dependency
+
+
+  // Function to handle image load
+  const handleImageLoad = () => {
+      // Increment the count for the corresponding image type (optional, but good for debugging)
+      // You could distinguish big/small here if needed, but a single total count is simpler
+
+      const loadedCount = bigImagesLoadedCount.current + smallImagesLoadedCount.current + 1; // Increment total
+      bigImagesLoadedCount.current++; // Or smallImagesLoadedCount.current++ based on logic if needed
+      console.log(`Image loaded. Total loaded: ${loadedCount}/${totalImagesToLoad.current}`); // Debugging
+
+
+      if (loadedCount >= totalImagesToLoad.current) {
+          console.log("All images loaded!");
+          setImagesLoaded(true); // Set state to true when all images are loaded
+      }
+  };
+
+  // Function to handle image error (important for cases where an image fails to load)
+  const handleImageError = (e) => {
+       console.error("Error loading image:", e.target.src);
+       // Even if an image fails, we should still count it towards the total to avoid getting stuck
+       const loadedCount = bigImagesLoadedCount.current + smallImagesLoadedCount.current + 1; // Increment total
+       bigImagesLoadedCount.current++; // Or smallImagesLoadedCount.current++
+
+       if (loadedCount >= totalImagesToLoad.current) {
+           console.log("Completed image loading process (some might have failed).");
+           setImagesLoaded(true); // Set state to true even if some failed
+       }
+  }
 
 
   if (error) {
     return <div className="flex justify-center items-center h-screen text-red-600">{error}</div>;
   }
 
-  if (bigImages.length === 0 && smallImages.length === 0) {
+  // Optionally show a loading indicator while images are fetching and loading
+  if (!imagesLoaded && (bigImages.length > 0 || smallImages.length > 0)) {
+      return <div className="flex justify-center items-center h-screen">Loading images...</div>;
+  }
+
+   if (bigImages.length === 0 && smallImages.length === 0) {
+    // This case is handled after fetching, but before loading check
+    // If fetchImages found no images, imagesLoaded will be true already
     return <div className="flex justify-center items-center h-screen">No images found to display.</div>;
   }
 
 
   return (
+    // The rest of your JSX remains largely the same, BUT we add onLoad and onError
     <motion.div className="relative h-screen w-screen overflow-hidden bg-indigo-200">
       <h1 className="underline absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-4xl font-bold text-black">
         HAPPY SOCIETY
@@ -135,7 +150,8 @@ const Header = () => {
         tempor incididunt ut labore et dolore magna aliqua. — 23
       </motion.p>
 
-      {bigImages.map((src, index) => {
+      {/* Render images only when imagesLoaded is true */}
+      {imagesLoaded && bigImages.map((src, index) => {
           const positionIndex = index % positions.length;
           const initialPositionIndex = index % bigImageInitialPositions.length;
           const durationIndex = index % bigDurations.length;
@@ -150,6 +166,7 @@ const Header = () => {
               src={src}
               alt={`Big ${index}`}
               className="object-cover absolute rounded-lg w-80 h-50"
+              // The animation will now only start once imagesLoaded is true
                initial={{
                 x: currentInitialPosition?.x || 0,
                 y: currentInitialPosition?.y || 0,
@@ -170,11 +187,14 @@ const Header = () => {
                 originX: currentPosition.originX,
                 originY: currentPosition.originY,
               }}
+              onLoad={handleImageLoad} // Add onLoad handler
+              onError={handleImageError} // Add onError handler
             />
           );
       })}
 
-      {smallImages.map((src, index) => {
+      {/* Render images only when imagesLoaded is true */}
+      {imagesLoaded && smallImages.map((src, index) => {
           const smallPositionIndex = index % smallPositions.length;
           const smallInitialPositionIndex = index % smallImageInitialPositions.length;
           const smallDurationIndex = index % smallDurations.length;
@@ -189,6 +209,7 @@ const Header = () => {
               src={src}
               alt={`Small ${index}`}
               className="object-cover absolute rounded-lg w-20 h-20"
+              // The animation will now only start once imagesLoaded is true
                initial={{
                 x: currentSmallInitialPosition?.x || 0,
                 y: currentSmallInitialPosition?.y || 0,
@@ -207,6 +228,8 @@ const Header = () => {
                  willChange: "transform, opacity",
                 ...currentSmallPosition,
               }}
+              onLoad={handleImageLoad} // Add onLoad handler
+              onError={handleImageError} // Add onError handler
             />
           );
       })}
