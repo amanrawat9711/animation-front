@@ -1,5 +1,3 @@
-// App.js
-
 import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
 
